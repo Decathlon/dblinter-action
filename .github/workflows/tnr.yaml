@@ -1,0 +1,24 @@
+name: Test actions
+
+on:
+  push: {}
+  pull_request: {}
+
+jobs:
+  test-actions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        id: checkout
+
+      - name: test-reports
+        id: dblinter
+        uses: ./
+        with:
+          flyway-migration: 'test/migration'
+          init-script: 'test/init.sql'
+          report-path: 'out/dblinter.sarif'
+
+

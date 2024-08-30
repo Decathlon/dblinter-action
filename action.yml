@@ -1,0 +1,97 @@
+name: "dblinter"
+description: "Launch a PG database, execute initial script and launch dblinter"
+inputs:
+  flyway-migration:
+    description: "Flyway migration script"
+    required: false
+    default: ""
+  init-script:
+    description: "path where an initial script is."
+    required: false
+    default: ""
+  config-file:
+    description: "path to the dblinter configuration file"
+    required: false
+    default: ""
+  report-path:
+    description: "Path to write the sarif report file"
+    required: true
+    default: "dblinter.sarif"
+  dblinter-version:
+    description: "dblinter version"
+    required: false
+    default: "latest"
+
+outputs:
+  sarif-report:
+    description: "sarif where the report is stored"
+    value: ${{ steps.dblinter.outputs.location }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Launch postgres database
+      id: launch
+      shell: bash
+      run: |
+        PGPASS=$(openssl rand -base64 12 | sed s{/{_{g )
+        echo "::add-mask::$PGPASS"
+        docker pull -q postgres:16
+        PG_CONTAINER=$(docker run -d -e POSTGRES_PASSWORD=$PGPASS postgres:16)
+        echo "pg_container=$PG_CONTAINER" >> $GITHUB_OUTPUT
+        PG_HOST=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PG_CONTAINER)
+        echo "PGHOST=$PG_HOST" >> $GITHUB_ENV
+        echo "PGPORT=5432" >> $GITHUB_ENV
+        echo "PGUSER=postgres" >> $GITHUB_ENV
+        echo "PGPASSWORD=$PGPASS" >> $GITHUB_ENV
+        echo "PGDATABASE=postgres" >> $GITHUB_ENV
+
+    - name: Execute flyway
+      if: inputs.flyway-migration != ''
+      shell: bash
+      run: |
+        ABSOLUTE_FLYWAY_MIGRATION=$(realpath ${{ inputs.flyway-migration }})
+        docker pull -q flyway/flyway:10
+        docker run --rm -v $ABSOLUTE_FLYWAY_MIGRATION:/flyway/sql flyway/flyway:10 -locations="filesystem:/flyway/sql" -url=jdbc:postgresql://$PGHOST:$PGPORT/$PGDATABASE -user=$PGUSER -password=$PGPASSWORD migrate
+
+    - name: Execute init script
+      if: inputs.init-script != ''
+      shell: bash
+      run: |
+          psql -v ON_ERROR_STOP=1 -f ${{ inputs.init-script }} > /dev/null
+
+    - name: get dblinter
+      shell: bash
+      run: |
+        docker pull -q decathlon/dblinter:${{inputs.dblinter-version}}
+
+    - name: Run dblinter
+      id: dblinter
+      shell: bash
+      run: |
+        mkdir -p $(dirname "${{ inputs.report-path }}")
+        ABSOLUTE_OUTPUT=$(realpath "${{ inputs.report-path }}")
+        echo "location=$ABSOLUTE_OUTPUT" >> $GITHUB_OUTPUT
+        ABSOLUTE_OUTPUT_DIR=$(dirname "$ABSOLUTE_OUTPUT")
+        FILENAME=$(basename "$ABSOLUTE_OUTPUT")
+        if [ -f "${{ inputs.config-file}}" ] ; then
+          ABSOLUTE_CONFIG=$(realpath "${{ inputs.config-file }}")
+          ABSOLUTE_CONFIG_DIR=$(dirname "$ABSOLUTE_CONFIG")
+          CONFIG_FILENAME=$(basename "$ABSOLUTE_CONFIG")
+          DOCKER_PARAMS="-v \"$ABSOLUTE_CONFIG_DIR:/config\""
+          CONFIG_FILE="-f \"/config/$CONFIG_FILENAME\""
+        fi
+        echo "----------------------------------------------------------------------"
+        echo "--                   Running dblinter now                           --"
+        echo "----------------------------------------------------------------------"
+        docker run --rm -t -u $(id -u) -v "$ABSOLUTE_OUTPUT_DIR:/report" $DOCKER_PARAMS decathlon/dblinter:${{inputs.dblinter-version}} --dbname $PGDATABASE --host $PGHOST --user $PGUSER --password $PGPASSWORD --port $PGPORT -o "/report/$FILENAME" $CONFIG_FILE
+        echo "----------------------------------------------------------------------"
+        echo "--                   Dblinter scan finished                         --"
+        echo "----------------------------------------------------------------------"
+
+    - name: clean up
+      if: always()
+      shell: bash
+      run: |
+          docker stop ${{ steps.launch.outputs.pg_container }}
+          docker rm ${{ steps.launch.outputs.pg_container }}
