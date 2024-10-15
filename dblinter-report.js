@@ -60,8 +60,8 @@ function validateInputForExec(input) {
         exit(1);
     }
     const regex = /^[a-zA-Z0-9.-_]+$/;
-    if(!regex.test(input)) {
-        core.setFailed(`${input} should only contain alphanumeric characters, dot, hyphens, underscores`);
+    if(!regex.test(value)) {
+        core.setFailed(`${input} should only contain alphanumeric characters, dot, hyphens, underscores. It is '${value}'`);
         exit(1);
     }
 
