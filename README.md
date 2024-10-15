@@ -7,10 +7,10 @@ This GitHub Action launches a PostgreSQL database, runs Flyway migrations and/or
 
 Flyway migration will be run before the "init-script" if both are provided.
 
-The db linter output is visible
+The db linter output is available:
+- As a SARIF report file (see report-path input)
 - in the logs ![dblinter output](docs/dblinter-output.png)
-- A SARIF report is generated
-- It is also possible to display the report in a PR comment if you are on a PR and if you ask for it.
+- It is also possible to display the report in a PR comment if you are on a PR and if you ask for it. ![PR comment](docs/in-pr.png)
 
 
 ## Inputs

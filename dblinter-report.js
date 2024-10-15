@@ -5,59 +5,6 @@ const github = require('@actions/github');
 const docker = require('docker-cli-js');
 const crypto = require("node:crypto");
 
-function buildReport(reportPath) {
-    const actualContent = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
-
-    let report = "# DBLinter Report:\n\n";
-
-    if (actualContent.runs[0].results && actualContent.runs[0].results.length > 0) {
-        report += "## Issues found:\n";
-        report += "```diff\n";
-        actualContent.runs[0].results.forEach(r => {
-            report += `- ⚠️ ${r.ruleId} ${r.message.text}\n`
-            report += `+ ↪️ ${r.fixes}\n\n`
-        });
-        report += "```\n";
-    } else {
-        report += "No issues found";
-    }
-    return report;
-}
-
-async function createComment(report, options) {
-    const context = github.context;
-
-    const octokit = github.getOctokit(options.githubToken);
-
-    const issue_number = context.payload.pull_request?.number;
-
-    let comment;
-    for await (const {data: comments} of octokit.paginate.iterator(octokit.rest.issues.listComments, {
-        ...context.repo,
-        issue_number,
-    })) {
-        comment = comments.find((comment) => comment?.body?.includes("# DBLinter Report:"));
-        if (comment) break;
-    }
-
-    if (comment) {
-        await octokit.rest.issues.updateComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            comment_id: comment.id,
-            body: report
-        });
-    } else {
-        await octokit.rest.issues.createComment({
-            issue_number: issue_number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: report
-        })
-    }
-}
-
-
 function validateInputForExec(input) {
     const value = core.getInput(input);
     if (!value) {
@@ -136,8 +83,6 @@ function validateInput(){
         core.setFailed("GITHUB_TOKEN is required to create a PR comment");
         exit(1);
     }
-
-
 
     return {
         reportPath,
@@ -229,6 +174,59 @@ async function executeDblinter(options, postgres) {
     console.log("----------------------------------------------------------------------");
     console.log("--                   Dblinter scan finished                         --");
     console.log("----------------------------------------------------------------------");
+}
+
+
+function buildReport(reportPath) {
+    const actualContent = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
+
+    let report = "# DBLinter Report:\n\n";
+
+    if (actualContent.runs[0].results && actualContent.runs[0].results.length > 0) {
+        report += "## Issues found:\n";
+        report += "```diff\n";
+        actualContent.runs[0].results.forEach(r => {
+            report += `- ⚠️ ${r.ruleId} ${r.message.text}\n`
+            report += `+ ↪️ ${r.fixes}\n\n`
+        });
+        report += "```\n";
+    } else {
+        report += "No issues found";
+    }
+    return report;
+}
+
+async function createComment(report, options) {
+    const context = github.context;
+
+    const octokit = github.getOctokit(options.githubToken);
+
+    const issue_number = context.payload.pull_request?.number;
+
+    let comment;
+    for await (const {data: comments} of octokit.paginate.iterator(octokit.rest.issues.listComments, {
+        ...context.repo,
+        issue_number,
+    })) {
+        comment = comments.find((comment) => comment?.body?.includes("# DBLinter Report:"));
+        if (comment) break;
+    }
+
+    if (comment) {
+        await octokit.rest.issues.updateComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            comment_id: comment.id,
+            body: report
+        });
+    } else {
+        await octokit.rest.issues.createComment({
+            issue_number: issue_number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+        })
+    }
 }
 
 
