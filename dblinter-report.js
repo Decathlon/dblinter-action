@@ -228,9 +228,11 @@ async function main() {
 
     await docker.dockerCommand(`kill ${postgres.pgContainer}`, {echo: false});
 
+    console.log("is it a pr? ", options);
     if (options.prComment) {
         const report = buildReport(options.reportPath);
 
+        console.log("Let's create a comment");
         await createComment(report, options);
     }
 }
