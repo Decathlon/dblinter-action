@@ -145,13 +145,9 @@ async function launchPostgres(config) {
 
     console.log("------------ pg container ------------");
     const container=await docker.dockerCommand(`run -d -e POSTGRES_PASSWORD=${pgPass} postgres:${config.postgresVersion}`);
-    console.log("------------ /container ------------");
+    console.log("------------ /pg container ------------");
     const inspect= await docker.dockerCommand(`inspect ${container.containerId} -f '{"ip":"{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}"}'`, {echo: false});
-    console.log("------------ inspect ------------");
-    console.log(inspect.object.ip);
-    console.log("------------ /inspect ------------");
-
-    // -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
+    console.log(`postgres is bound on ip: ${inspect.object.ip}`);
 
     return {
         pgContainer: container.containerId,
@@ -166,13 +162,15 @@ async function launchPostgres(config) {
 
 async function executeFlyway(config, postgres) {
     if (!config.flywayMigration) {
+        console.log("No flyway migration file found");
         return;
     }
-    await docker.dockerCommand(`run --rm -v ${config.flywayMigration}:/flyway/sql flyway/flyway:${config.flywayVersion} -locations="filesystem:/flyway/sql" -url=jdbc:postgresql://${postgres.pgHost}:${postgres.pgPort}/${postgres.pgDatabase} -user=${postgres.pgUser} -password=${postgres.pgPass} migrate`, {stdio: 'inherit'});
+    await docker.dockerCommand(`run --rm -v ${config.flywayMigration}:/flyway/sql flyway/flyway:${config.flywayVersion} -locations="filesystem:/flyway/sql" -url=jdbc:postgresql://${postgres.pgHost}:${postgres.pgPort}/${postgres.pgDatabase} -user=${postgres.pgUser} -password=${postgres.pgPass} migrate`);
 }
 
 async function executeInitSql(config, postgres){
     if (!config.initScript) {
+        console.log("No init script found");
         return;
     }
 
