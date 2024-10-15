@@ -201,7 +201,7 @@ async function executeDblinter(options, postgres) {
     console.log("----------------------------------------------------------------------");
     console.log("--                   Running dblinter now                           --");
     console.log("----------------------------------------------------------------------");
-    docker.dockerCommand(`run --rm -t -u $(id -u) -v ${options.reportDir}:/report  decathlon/dblinter:${options.dblinterVersion} --dbname ${postgres.pgDatabase} --host ${postgres.pgHost} --user ${postgres.pgUser} --password ${postgres.pgPass} --port ${postgres.pgPort} -o /report/${options.reportFileName}`);
+    await docker.dockerCommand(`run --rm -t -u $(id -u) -v ${options.reportDir}:/report  decathlon/dblinter:${options.dblinterVersion} --dbname ${postgres.pgDatabase} --host ${postgres.pgHost} --user ${postgres.pgUser} --password ${postgres.pgPass} --port ${postgres.pgPort} -o /report/${options.reportFileName}`);
     console.log("----------------------------------------------------------------------");
     console.log("--                   Dblinter scan finished                         --");
     console.log("----------------------------------------------------------------------");
