@@ -146,17 +146,16 @@ async function launchPostgres(config) {
     console.log("------------ pg container ------------");
     const container=await docker.dockerCommand(`run -d -e POSTGRES_PASSWORD=${pgPass} postgres:${config.postgresVersion}`);
     console.log("------------ /container ------------");
-
-    const inspect= await docker.dockerCommand(`inspect ${container.containerId}`);
+    const inspect= await docker.dockerCommand(`inspect ${container.containerId} -f '{"ip":"{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}"}'`, {echo: false});
     console.log("------------ inspect ------------");
-    console.log(inspect);
+    console.log(inspect.object[0].ip);
     console.log("------------ /inspect ------------");
 
     // -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
 
     return {
         pgContainer: container.containerId,
-        pgHost: inspect.raw,
+        pgHost: inspect.object[0].ip,
         pgPort: 5432,
         pgUser: 'postgres',
         pgPass,
