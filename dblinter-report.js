@@ -75,15 +75,16 @@ function validateInput(){
         exit(1);
     }
     let filename=reportPathInput;
+    let directory=".";
     if (reportPathInput.includes("/")) {
-        const tmpStr = reportPathInput.split('/').slice(0, -1).join('/');
+        directory = reportPathInput.split('/').slice(0, -1).join('/');
         filename = reportPathInput.split('/').pop();
-        if (!fs.existsSync(tmpStr)) {
-            fs.mkdirSync(tmpStr, { recursive: true });
+        if (!fs.existsSync(directory)) {
+            fs.mkdirSync(directory, { recursive: true });
         }
     }
 
-    const reportDir = fs.realpathSync(reportPathInput);
+    const reportDir = fs.realpathSync(directory);
     const reportPath = `${reportDir}/${filename}`;
 
     let flywayMigration = core.getInput('flyway-migration');
