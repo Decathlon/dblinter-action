@@ -15,6 +15,11 @@ inputs:
     required: true
     default: "dblinter.sarif"
 
+  config-file:
+    description: "Path to the dblinter config file if you want to use a custom one"
+    required: false
+    default: ""
+
   dblinter-version:
     description: "dblinter version"
     required: false

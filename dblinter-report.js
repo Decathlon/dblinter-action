@@ -93,6 +93,20 @@ function validateInput(){
     const reportPath = `${reportDir}/${filename}`;
     const reportFileName = filename;
 
+    let configFile=core.getInput("config-file");
+    let configFileDir = "";
+    let configFileName = "";
+    if (configFile) {
+        if (!fs.existsSync(config)){
+            core.setFailed(`Config file not found: ${configFile}`);
+            exit(1);
+        }
+        configFile = fs.realpathSync(configFile);
+        configFileDir = configFile.split('/').slice(0, -1).join('/');
+        configFileName = configFile.split('/').pop();
+    }
+
+
     let flywayMigration = core.getInput('flyway-migration');
     if (flywayMigration) {
         flywayMigration = fs.realpathSync(flywayMigration);
@@ -129,6 +143,8 @@ function validateInput(){
         reportPath,
         reportDir,
         reportFileName,
+        configFileDir,
+        configFileName,
         flywayMigration,
         initScript,
         dblinterVersion,
@@ -203,10 +219,13 @@ async function executeInitSql(config, postgres){
 
 
 async function executeDblinter(options, postgres) {
+    const additionalVolumes = options.configFileDir ? `-v ${options.configFileDir}:/config` : "";
+    const additionalParams = options.configFileName ? `-f /config/${options.configFileName}` : "";
+
     console.log("----------------------------------------------------------------------");
     console.log("--                   Running dblinter now                           --");
     console.log("----------------------------------------------------------------------");
-    await docker.dockerCommand(`run --rm -t -u $(id -u) -v ${options.reportDir}:/report  decathlon/dblinter:${options.dblinterVersion} --dbname ${postgres.pgDatabase} --host ${postgres.pgHost} --user ${postgres.pgUser} --password ${postgres.pgPass} --port ${postgres.pgPort} -o /report/${options.reportFileName}`);
+    await docker.dockerCommand(`run --rm -t -u $(id -u) ${additionalVolumes} -v ${options.reportDir}:/report  decathlon/dblinter:${options.dblinterVersion} ${additionalParams} --dbname ${postgres.pgDatabase} --host ${postgres.pgHost} --user ${postgres.pgUser} --password ${postgres.pgPass} --port ${postgres.pgPort} -o /report/${options.reportFileName}`);
     console.log("----------------------------------------------------------------------");
     console.log("--                   Dblinter scan finished                         --");
     console.log("----------------------------------------------------------------------");
@@ -228,11 +247,8 @@ async function main() {
 
     await docker.dockerCommand(`kill ${postgres.pgContainer}`, {echo: false});
 
-    console.log("is it a pr? ", options);
     if (options.prComment) {
         const report = buildReport(options.reportPath);
-
-        console.log("Let's create a comment");
         await createComment(report, options);
     }
 }
