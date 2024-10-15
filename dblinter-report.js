@@ -3,6 +3,7 @@ const core = require('@actions/core');
 const exec = require('@actions/exec');
 const github = require('@actions/github');
 const docker = require('docker-cli-js');
+const crypto = require("node:crypto");
 
 function buildReport(reportPath) {
     const actualContent = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
@@ -132,14 +133,14 @@ function validateInput(){
 }
 
 async function downloadDockerImage(config){
-    docker.dockerCommand('pull decathlon/dblinter:'+config.dblinterVersion);
-    docker.dockerCommand('pull flyway/flyway:'+config.flywayVersion);
-    await docker.dockerCommand('pull postgres:'+config.postgresVersion);
+    docker.dockerCommand('pull -q decathlon/dblinter:'+config.dblinterVersion);
+    docker.dockerCommand('pull -q flyway/flyway:'+config.flywayVersion);
+    await docker.dockerCommand('pull -q postgres:'+config.postgresVersion);
 }
 
 
 async function launchPostgres(config) {
-    const pgPass = Buffer.from(crypto.randomBytes(12)).toString('base64').replace(/\//g, '_');
+    const pgPass = crypto.randomBytes(16).toString('hex');
     core.setSecret(pgPass);
 
     const container=await docker.dockerCommand(`run -d -e POSTGRES_PASSWORD=${pgPass} postgres:${config.postgresVersion}`);
