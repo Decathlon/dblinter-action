@@ -1,7 +1,9 @@
 name: Test actions
 
 on:
-  push: {}
+  push:
+    branches:
+      - main
   pull_request: {}
 
 jobs:
@@ -20,5 +22,6 @@ jobs:
           flyway-migration: 'test/migration'
           init-script: 'test/init.sql'
           report-path: 'out/dblinter.sarif'
+          pr-comment: 'true'
 
 

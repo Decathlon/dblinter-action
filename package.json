@@ -1,0 +1,22 @@
+{
+  "name": "dblinter-report",
+  "version": "1.0.0",
+  "description": "dblinter-report",
+  "main": "dblinter-report.js",
+  "scripts": {
+    "package": "ncc build dblinter-report.js -o dist -m"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Decathlon License",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "^6.0.0",
+    "@actions/io": "^1.1.3",
+    "docker-cli-js": "^2.10.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.2"
+  }
+}
