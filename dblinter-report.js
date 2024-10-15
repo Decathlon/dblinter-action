@@ -69,15 +69,22 @@ function validateInputForExec(input) {
 }
 
 function validateInput(){
-    const reportPath = fs.realpathSync(core.getInput('report-path'));
-    // Remove last part of report path
-    const reportDir = reportPath.split('/').slice(0, -1).join('/');
-    if (!fs.existsSync(reportDir)) {
-        fs.mkdirSync(reportDir, { recursive: true });
+    let reportPathInput=core.getInput('report-path');
+    if (!reportPathInput) {
+        core.setFailed('report-path is required');
+        exit(1);
     }
-    if (!fs.existsSync(reportPath)) {
-        core.setFailed(`Report file not found: ${reportPath}`);
+    let filename=reportPathInput;
+    if (reportPathInput.includes("/")) {
+        const tmpStr = reportPathInput.split('/').slice(0, -1).join('/');
+        filename = reportPathInput.split('/').pop();
+        if (!fs.existsSync(tmpStr)) {
+            fs.mkdirSync(tmpStr, { recursive: true });
+        }
     }
+
+    const reportDir = fs.realpathSync(reportPathInput);
+    const reportPath = `${reportDir}/${filename}`;
 
     let flywayMigration = core.getInput('flyway-migration');
     if (flywayMigration) {
@@ -197,6 +204,7 @@ async function executeDblinter(options, postgres) {
 
 async function main() {
     const options = validateInput();
+    console.log("options: ", options);
     await downloadDockerImage(options);
     const postgres = await launchPostgres(options);
 
