@@ -24,8 +24,12 @@ function buildReport(reportPath) {
     return report;
 }
 
-async function createComment(report) {
+async function createComment(report, options) {
     const context = github.context;
+
+    const octokit = github.getOctokit(options.githubToken);
+
+    const issue_number = context.payload.pull_request?.number;
 
     let comment;
     for await (const {data: comments} of octokit.paginate.iterator(octokit.rest.issues.listComments, {
@@ -45,7 +49,7 @@ async function createComment(report) {
         });
     } else {
         await octokit.rest.issues.createComment({
-            issue_number: context.payload.pull_request?.number,
+            issue_number: issue_number,
             owner: context.repo.owner,
             repo: context.repo.repo,
             body: report
@@ -111,9 +115,10 @@ function validateInput(){
     const postgresVersion = validateInputForExec("postgres-version");
     const flywayVersion = validateInputForExec("flyway-version");
 
-    const prComment = core.getInput('pr-comment')==='true';
+    const inPR = github.context.eventName.toLowerCase()==='pull_request'
+    const prComment = inPR && core.getInput('pr-comment')==='true';
     const githubToken = core.getInput('GITHUB_TOKEN');
-    if ( (github.context.eventName.toLowerCase()==='pull_request') && prComment && !githubToken) {
+    if ( inPR && prComment && !githubToken) {
         core.setFailed("GITHUB_TOKEN is required to create a PR comment");
         exit(1);
     }
@@ -221,20 +226,12 @@ async function main() {
 
     core.setOutput("sarif-report", options.reportPath);
 
-    docker.dockerCommand(`kill ${postgres.pgContainer}`);
+    await docker.dockerCommand(`kill ${postgres.pgContainer}`, {echo: false});
 
-    const report = buildReport(options.reportPath);
+    if (options.prComment) {
+        const report = buildReport(options.reportPath);
 
-    const github_token = core.getInput('GITHUB_TOKEN');
-    const octokit = github.getOctokit(github_token);
-
-    const context = github.context;
-    const issue_number = context.payload.pull_request?.number;
-
-    if (!issue_number) {
-        core.info('No issue number found.');
-    } else {
-        createComment(report);
+        await createComment(report, options);
     }
 }
 
