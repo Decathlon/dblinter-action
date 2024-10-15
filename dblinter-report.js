@@ -87,6 +87,7 @@ function validateInput(){
 
     const reportDir = fs.realpathSync(directory);
     const reportPath = `${reportDir}/${filename}`;
+    const reportFileName = filename;
 
     let flywayMigration = core.getInput('flyway-migration');
     if (flywayMigration) {
@@ -122,6 +123,7 @@ function validateInput(){
     return {
         reportPath,
         reportDir,
+        reportFileName,
         flywayMigration,
         initScript,
         dblinterVersion,
@@ -133,6 +135,7 @@ function validateInput(){
 }
 
 async function downloadDockerImage(config){
+    console.log("We will use: ");
     docker.dockerCommand('pull -q decathlon/dblinter:'+config.dblinterVersion);
     docker.dockerCommand('pull -q flyway/flyway:'+config.flywayVersion);
     await docker.dockerCommand('pull -q postgres:'+config.postgresVersion);
@@ -145,9 +148,9 @@ async function launchPostgres(config) {
 
     console.log("------------ pg container ------------");
     const container=await docker.dockerCommand(`run -d -e POSTGRES_PASSWORD=${pgPass} postgres:${config.postgresVersion}`);
-    console.log("------------ /pg container ------------");
     const inspect= await docker.dockerCommand(`inspect ${container.containerId} -f '{"ip":"{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}"}'`, {echo: false});
     console.log(`postgres is bound on ip: ${inspect.object.ip}`);
+    console.log("------------ /pg container ------------");
 
     return {
         pgContainer: container.containerId,
@@ -162,10 +165,12 @@ async function launchPostgres(config) {
 
 async function executeFlyway(config, postgres) {
     if (!config.flywayMigration) {
-        console.log("No flyway migration file found");
+        console.log("No flyway migration file found\n");
         return;
     }
+    console.log(`Flyway migration file found ${config.flywayVersion}`);
     await docker.dockerCommand(`run --rm -v ${config.flywayMigration}:/flyway/sql flyway/flyway:${config.flywayVersion} -locations="filesystem:/flyway/sql" -url=jdbc:postgresql://${postgres.pgHost}:${postgres.pgPort}/${postgres.pgDatabase} -user=${postgres.pgUser} -password=${postgres.pgPass} migrate`);
+    console.log("\n");
 }
 
 async function executeInitSql(config, postgres){
@@ -173,7 +178,7 @@ async function executeInitSql(config, postgres){
         console.log("No init script found");
         return;
     }
-
+    console.log(`Init script found ${config.initScript}`);
     const exitCode = await exec.exec("psql",
         ["-v","ON_ERROR_STOP=1", "-f", config.initScript],
         {env: {
@@ -184,6 +189,7 @@ async function executeInitSql(config, postgres){
             PGDATABASE: postgres.pgDatabase
             }});
 
+    console.log("\n");
     if (exitCode !== 0) {
         core.setFailed("Error executing init script");
         exit(1);
@@ -195,7 +201,7 @@ async function executeDblinter(options, postgres) {
     console.log("----------------------------------------------------------------------");
     console.log("--                   Running dblinter now                           --");
     console.log("----------------------------------------------------------------------");
-    docker.dockerCommand("run --rm -t -u $(id -u) -v $ABSOLUTE_OUTPUT_DIR:/report  decathlon/dblinter:${{inputs.dblinter-version}} --dbname $PGDATABASE --host $PGHOST --user $PGUSER --password $PGPASSWORD --port $PGPORT -o /report/$FILENAME", {stdio: 'inherit'});
+    docker.dockerCommand(`run --rm -t -u $(id -u) -v ${options.reportDir}:/report  decathlon/dblinter:${options.dblinterVersion} --dbname ${postgres.pgDatabase} --host ${postgres.pgHost} --user ${postgres.pgUser} --password ${postgres.pgPass} --port ${postgres.pgPort} -o /report/${options.reportFileName}`);
     console.log("----------------------------------------------------------------------");
     console.log("--                   Dblinter scan finished                         --");
     console.log("----------------------------------------------------------------------");
