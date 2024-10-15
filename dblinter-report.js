@@ -143,15 +143,16 @@ async function launchPostgres(config) {
     const pgPass = crypto.randomBytes(16).toString('hex');
     core.setSecret(pgPass);
 
+    console.log("------------ pg container ------------");
     const container=await docker.dockerCommand(`run -d -e POSTGRES_PASSWORD=${pgPass} postgres:${config.postgresVersion}`);
-    console.log("------------ container ------------");
-    console.log(container);
     console.log("------------ /container ------------");
 
-    const inspect= await docker.dockerCommand(`inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${container.containerId}`);
+    const inspect= await docker.dockerCommand(`inspect ${container.containerId}`);
     console.log("------------ inspect ------------");
     console.log(inspect);
     console.log("------------ /inspect ------------");
+
+    // -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
 
     return {
         pgContainer: container.containerId,
@@ -206,7 +207,6 @@ async function executeDblinter(options, postgres) {
 
 async function main() {
     const options = validateInput();
-    console.log("options: ", options);
     await downloadDockerImage(options);
     const postgres = await launchPostgres(options);
 
