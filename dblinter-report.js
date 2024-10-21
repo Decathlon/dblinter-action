@@ -135,7 +135,7 @@ async function executeFlyway(config, postgres) {
         return;
     }
     console.log(`Flyway migration file found ${config.flywayVersion}`);
-    await docker.dockerCommand(`run --rm -v ${config.flywayMigration}:/flyway/sql flyway/flyway:${config.flywayVersion} -locations="filesystem:/flyway/sql" -url=jdbc:postgresql://${postgres.pgHost}:${postgres.pgPort}/${postgres.pgDatabase} -user=${postgres.pgUser} -password=${postgres.pgPass} migrate`);
+    await docker.dockerCommand(`run --rm -v ${config.flywayMigration}:/flyway/sql flyway/flyway:${config.flywayVersion} -locations="filesystem:/flyway/sql" -url=jdbc:postgresql://${postgres.pgHost}:${postgres.pgPort}/${postgres.pgDatabase} -user=${postgres.pgUser} -password=${postgres.pgPass} -postgresql.transactional.lock=false migrate`);
     console.log("\n");
 }
 
