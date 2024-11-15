@@ -118,7 +118,7 @@ async function launchPostgres(config) {
     console.log(`postgres is bound on ip: ${inspect.object.ip}`);
     console.log("------------ /pg container ------------");
 
-    while (await docker.dockerCommand(`exec ${container.containerId} pg_isready -U postgres -h localhost`, {echo: false}) !== 0) {
+    while (await docker.dockerCommand(`exec ${container.containerId} pg_isready -U postgres -h localhost`, {echo: false}).then(()=>0,()=>1 ) !== 0) {
         console.log("Waiting for postgres to be ready");
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
