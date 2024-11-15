@@ -4,7 +4,8 @@
   "description": "dblinter-report",
   "main": "dblinter-report.js",
   "scripts": {
-    "package": "ncc build dblinter-report.js -o dist -m"
+    "package": "ncc build dblinter-report.js -o dist -m",
+    "package-dbg": "ncc build dblinter-report.js -o dist"
   },
   "keywords": [],
   "author": "",
