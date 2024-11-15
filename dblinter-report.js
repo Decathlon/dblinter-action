@@ -118,7 +118,22 @@ async function launchPostgres(config) {
     console.log(`postgres is bound on ip: ${inspect.object.ip}`);
     console.log("------------ /pg container ------------");
 
-    return {
+    while (await docker.dockerCommand(`exec ${container.containerId} pg_isready -U postgres -h localhost`, {echo: false}).then(()=>0,()=>1 ) !== 0) {
+        console.log("Waiting for postgres to be ready");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    // Remove entry from pg_hba there is no point to set a warn on the rule here.
+    const cleanHbaCmd=`
+        create table hba(lines text);
+        copy hba from '/var/lib/postgresql/data/pg_hba.conf';
+        delete from hba where lines not like '%scram-sha-256';
+        copy hba to '/var/lib/postgresql/data/pg_hba.conf';
+        drop table hba;
+        select pg_reload_conf();
+    `.replace(/\n/g, " ").replace(/\s+/g, " ");
+
+    const dbConnection={
         pgContainer: container.containerId,
         pgHost: inspect.object.ip,
         pgPort: 5432,
@@ -127,6 +142,18 @@ async function launchPostgres(config) {
         pgDatabase: 'postgres',
     };
 
+    await exec.exec("psql",
+        ["-v","ON_ERROR_STOP=1", "-c", cleanHbaCmd],
+        {env: {
+                PGPASSWORD: dbConnection.pgPass,
+                PGHOST: dbConnection.pgHost,
+                PGPORT: dbConnection.pgPort,
+                PGUSER: dbConnection.pgUser,
+                PGDATABASE: dbConnection.pgDatabase
+            }});
+
+
+    return dbConnection;
 }
 
 async function executeFlyway(config, postgres) {
