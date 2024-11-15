@@ -128,18 +128,7 @@ async function launchPostgres(config) {
         select pg_reload_conf();
     `.replace(/\n/g, " ").replace(/\s+/g, " ");
 
-    await exec.exec("psql",
-        ["-v","ON_ERROR_STOP=1", "-c", cleanHbaCmd],
-        {env: {
-                PGPASSWORD: postgres.pgPass,
-                PGHOST: postgres.pgHost,
-                PGPORT: postgres.pgPort,
-                PGUSER: postgres.pgUser,
-                PGDATABASE: postgres.pgDatabase
-            }});
-
-
-    return {
+    const dbConnection={
         pgContainer: container.containerId,
         pgHost: inspect.object.ip,
         pgPort: 5432,
@@ -148,6 +137,18 @@ async function launchPostgres(config) {
         pgDatabase: 'postgres',
     };
 
+    await exec.exec("psql",
+        ["-v","ON_ERROR_STOP=1", "-c", cleanHbaCmd],
+        {env: {
+                PGPASSWORD: dbConnection.pgPass,
+                PGHOST: dbConnection.pgHost,
+                PGPORT: dbConnection.pgPort,
+                PGUSER: dbConnection.pgUser,
+                PGDATABASE: dbConnection.pgDatabase
+            }});
+
+
+    return dbConnection;
 }
 
 async function executeFlyway(config, postgres) {
