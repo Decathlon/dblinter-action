@@ -118,6 +118,27 @@ async function launchPostgres(config) {
     console.log(`postgres is bound on ip: ${inspect.object.ip}`);
     console.log("------------ /pg container ------------");
 
+    // Remove entry from pg_hba there is no point to set a warn on the rule here.
+    const cleanHbaCmd=`
+        create table hba(lines text);
+        copy hba from '/var/lib/postgresql/data/pg_hba.conf';
+        delete from hba where lines not like '%scram-sha-256';
+        copy hba to '/var/lib/postgresql/data/pg_hba.conf';
+        drop table hba;
+        select pg_reload_conf();
+    `.replace(/\n/g, " ").replace(/\s+/g, " ");
+
+    await exec.exec("psql",
+        ["-v","ON_ERROR_STOP=1", "-c", cleanHbaCmd],
+        {env: {
+                PGPASSWORD: postgres.pgPass,
+                PGHOST: postgres.pgHost,
+                PGPORT: postgres.pgPort,
+                PGUSER: postgres.pgUser,
+                PGDATABASE: postgres.pgDatabase
+            }});
+
+
     return {
         pgContainer: container.containerId,
         pgHost: inspect.object.ip,
