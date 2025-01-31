@@ -34,7 +34,7 @@ Logs in the action will also display the issue found by `dblinter`.
 ## Usage
 
 ```yaml
-name: Run dblinter
+name: Run dblinter -- quality
 on: [push, pull_request]
 
 jobs:
