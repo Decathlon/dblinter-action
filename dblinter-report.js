@@ -84,6 +84,8 @@ function validateInput(){
         exit(1);
     }
 
+    let exclude = core.getInput("exclude");
+
     return {
         reportPath,
         reportDir,
@@ -97,6 +99,7 @@ function validateInput(){
         flywayVersion,
         prComment,
         githubToken,
+        exclude
     };
 }
 
@@ -193,11 +196,12 @@ async function executeInitSql(config, postgres){
 async function executeDblinter(options, postgres) {
     const additionalVolumes = options.configFileDir ? `-v ${options.configFileDir}:/config` : "";
     const additionalParams = options.configFileName ? `-f /config/${options.configFileName}` : "";
+    const excludeTables = options.exclude ? `--exclude ${options.exclude}` : "";
 
     console.log("----------------------------------------------------------------------");
     console.log("--                   Running dblinter now                           --");
     console.log("----------------------------------------------------------------------");
-    await docker.dockerCommand(`run --rm -t -u $(id -u) ${additionalVolumes} -v ${options.reportDir}:/report  decathlon/dblinter:${options.dblinterVersion} ${additionalParams} --dbname ${postgres.pgDatabase} --host ${postgres.pgHost} --user ${postgres.pgUser} --password ${postgres.pgPass} --port ${postgres.pgPort} -o /report/${options.reportFileName}`);
+    await docker.dockerCommand(`run --rm -t -u $(id -u) ${additionalVolumes} -v ${options.reportDir}:/report  decathlon/dblinter:${options.dblinterVersion} ${additionalParams} --dbname ${postgres.pgDatabase} --host ${postgres.pgHost} --user ${postgres.pgUser} --password ${postgres.pgPass} --port ${postgres.pgPort} ${excludeTables} -o /report/${options.reportFileName}`);
     console.log("----------------------------------------------------------------------");
     console.log("--                   Dblinter scan finished                         --");
     console.log("----------------------------------------------------------------------");
